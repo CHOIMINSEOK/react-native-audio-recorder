@@ -31,3 +31,6 @@ Thumbs.db
 yarn-error.log
 npm-debug.log
 package-lock.json
+
+.gradle/
+local.properties

@@ -10,23 +10,23 @@ Scaffold basic mono repo
 
 **iOS Setup**
 
-- [ ] Create iOS module structure
-- [ ] Implement permission methods
+- [x] Create iOS module structure
+- [x] Implement permission methods
 - [ ] Basic AVAudioEngine setup
-- [ ] State management
+- [x] State management
 
 **Android Setup**
 
-- [ ] Create Android module structure
-- [ ] Implement permission methods
+- [x] Create Android module structure
+- [x] Implement permission methods
 - [ ] Basic AudioRecord setup
-- [ ] State management
+- [x] State management
 
 **TypeScript API**
 
-- [ ] Define TypeScript interfaces
-- [ ] Create module bridge
-- [ ] Basic documentation
+- [x] Define TypeScript interfaces
+- [x] Create module bridge
+- [x] Basic documentation
 
 ### Phase 2: Core Recording 
 
