@@ -192,7 +192,7 @@ export type ErrorEvent = {
  *
  * @example
  * ```typescript
- * import AudioRecorder from 'choiminseok/react-native-audio-recorder';
+ * import AudioRecorder from '@choiminseok/react-native-audio-recorder';
  *
  * // Check permissions
  * const status = await AudioRecorder.checkPermission();
@@ -443,10 +443,6 @@ RCT_EXTERN_METHOD(getState:(RCTPromiseResolveBlock)resolve
 RCT_EXTERN_METHOD(getDuration:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
-+ (BOOL)requiresMainQueueSetup
-{
-  return NO;
-}
 
 @end
 ```
@@ -467,10 +463,6 @@ class AudioRecorder: RCTEventEmitter {
 
   override func supportedEvents() -> [String]! {
     return ["audioData", "stateChange", "error"]
-  }
-
-  override static func requiresMainQueueSetup() -> Bool {
-    return false
   }
 
   // Implementation continues same as before...
@@ -596,7 +588,7 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => "13.0" }
-  s.source       = { :git => "https://github.com/CHOIMINSEOK/react-native-audio-recorder.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/@choiminseok/react-native-audio-recorder.git", :tag => "#{s.version}" }
 
   s.source_files = "ios/**/*.{h,m,mm,swift}"
 
@@ -698,9 +690,6 @@ class AudioRecorder: RCTEventEmitter {
     return ["audioData", "stateChange", "error"]
   }
 
-  override static func requiresMainQueueSetup() -> Bool {
-    return false
-  }
 
   // MARK: - Permission Methods
 
@@ -1906,13 +1895,13 @@ react-native-audio-recorder/                    # Root monorepo
     "speech-to-text",
     "microphone"
   ],
-  "repository": "https://github.com/CHOIMINSEOK/react-native-audio-recorder",
+  "repository": "https://github.com/@choiminseok/react-native-audio-recorder",
   "author": "CHOIMINSEOK <your-email@example.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/CHOIMINSEOK/react-native-audio-recorder/issues"
+    "url": "https://github.com/@choiminseok/react-native-audio-recorder/issues"
   },
-  "homepage": "https://github.com/CHOIMINSEOK/react-native-audio-recorder#readme",
+  "homepage": "https://github.com/@choiminseok/react-native-audio-recorder#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },

@@ -1,0 +1,29 @@
+{
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "yarn@4.5.3",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "yarn workspace @choiminseok/react-native-audio-recorder build",
+    "test": "yarn workspace @choiminseok/react-native-audio-recorder test",
+    "lint": "eslint \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\"",
+    "typecheck": "yarn workspaces run typecheck",
+    "example:ios": "yarn workspace example ios",
+    "example:android": "yarn workspace example android",
+    "pod-install": "cd apps/example/ios && pod install"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

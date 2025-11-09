@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Yarn 4 (Berry) - Keep cache and releases, ignore unplugged
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# Build outputs
+lib/
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package manager
+yarn-error.log
+npm-debug.log
+package-lock.json

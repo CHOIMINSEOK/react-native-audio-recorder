@@ -5,8 +5,8 @@
 
 **Project Setup**
 Scaffold basic mono repo 
-- [ ] Add "react-native-audio-recorder" package with dummy printAudio function for local package link test. 
-- [ ] Add "demo" app. RN version should be 0.81.5 . Just simple button to call printAudio function from "react-native-audio-recorder" 
+- [x] Add "react-native-audio-recorder" package with dummy printAudio function for local package link test. 
+- [x] Add "demo" app. RN version should be 0.81.5 . Just simple button to call printAudio function from "react-native-audio-recorder" 
 
 **iOS Setup**
 
