@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -17,6 +17,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import AudioRecorder, { PermissionStatus, RecorderState } from '@choiminseok/react-native-audio-recorder';
+import { AudioBufferSourceNode, AudioContext } from 'react-native-audio-api';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
@@ -25,6 +26,10 @@ function App(): React.JSX.Element {
   const [log, setLog] = useState<string[]>([]);
   const [chunksReceived, setChunksReceived] = useState<number>(0);
   const [lastChunkTimestamp, setLastChunkTimestamp] = useState<number>(0);
+  const [lastRecordedFileUri, setLastRecordedFileUri] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
     checkPermission();
@@ -52,9 +57,21 @@ function App(): React.JSX.Element {
       }
     });
 
+    // Initialize AudioContext
+    audioContextRef.current = new AudioContext();
+
     return () => {
       stateSubscription.remove();
       audioSubscription.remove();
+      // Cleanup audio
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.stop();
+        sourceNodeRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
     };
   }, []);
 
@@ -103,8 +120,9 @@ function App(): React.JSX.Element {
     try {
       addLog('Stopping recording...');
       const result = await AudioRecorder.stopRecording();
-      addLog(`Recording stopped! File: ${result.filePath}`);
+      addLog(`Recording stopped! File: ${result.tmpFileUri}`);
       addLog(`Duration: ${result.durationMs}ms, Size: ${result.fileSizeBytes} bytes`);
+      setLastRecordedFileUri(result.tmpFileUri);
       const state = await AudioRecorder.getState();
       setRecorderState(state);
     } catch (error) {
@@ -121,6 +139,71 @@ function App(): React.JSX.Element {
       setRecorderState(state);
     } catch (error) {
       addLog(`Error cancelling: ${error}`);
+    }
+  };
+
+  const playRecording = async () => {
+    if (!lastRecordedFileUri) {
+      addLog('No recording to play');
+      return;
+    }
+
+    if (!audioContextRef.current) {
+      addLog('AudioContext not initialized');
+      return;
+    }
+
+    // Stop current playback if playing
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current = null;
+    }
+
+    try {
+      addLog(`Loading audio file: ${lastRecordedFileUri}`);
+      console.log('lastRecordedFile', lastRecordedFileUri);
+
+      const audioContext = audioContextRef.current;
+
+      // Decode audio file
+      const audioBuffer = await audioContext.decodeAudioData(lastRecordedFileUri);
+
+      const duration = audioBuffer.duration;
+      addLog(`Playing audio (${duration.toFixed(1)}s)...`);
+
+      // Create source node
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+
+      // Handle playback end
+      source.onended = () => {
+        addLog('Playback finished');
+        setIsPlaying(false);
+        sourceNodeRef.current = null;
+      };
+
+      // Start playback
+      source.start();
+      sourceNodeRef.current = source;
+      setIsPlaying(true);
+
+    } catch (error) {
+      addLog(`Failed to load sound: ${error}`);
+      setIsPlaying(false);
+    }
+  };
+
+  const stopPlayback = () => {
+    if (sourceNodeRef.current) {
+      try {
+        sourceNodeRef.current.stop();
+        addLog('Playback stopped');
+      } catch (error) {
+        // Already stopped
+      }
+      sourceNodeRef.current = null;
+      setIsPlaying(false);
     }
   };
 
@@ -225,6 +308,29 @@ function App(): React.JSX.Element {
             <Text style={styles.buttonText}>Cancel Recording</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Playback Controls */}
+        {lastRecordedFileUri && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Playback</Text>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.smallButton, styles.primaryButton]}
+                onPress={playRecording}
+                disabled={isPlaying}
+              >
+                <Text style={styles.buttonText}>Play Last Recording</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.smallButton, styles.dangerButton]}
+                onPress={stopPlayback}
+                disabled={!isPlaying}
+              >
+                <Text style={styles.buttonText}>Stop</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Log */}
         <View style={styles.logContainer}>

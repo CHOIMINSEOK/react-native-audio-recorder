@@ -130,7 +130,7 @@ class AudioRecorder: RCTEventEmitter {
       case .success(let recordingResult):
         self.setState(.stopped)
         resolve([
-          "filePath": recordingResult.filePath,
+          "tmpFileUri": "file://\(recordingResult.filePath)",
           "durationMs": recordingResult.durationMs,
           "fileSizeBytes": recordingResult.fileSizeBytes,
           "sampleRate": recordingResult.sampleRate,

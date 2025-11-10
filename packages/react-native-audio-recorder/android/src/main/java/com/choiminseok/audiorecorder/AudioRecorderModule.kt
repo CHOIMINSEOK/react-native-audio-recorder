@@ -156,7 +156,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
 
             if (result != null) {
                 val resultMap = Arguments.createMap().apply {
-                    putString("filePath", result.filePath)
+                    putString("tmpFileUri", "file://${result.filePath}")
                     putInt("durationMs", result.durationMs)
                     putInt("fileSizeBytes", result.fileSizeBytes)
                     putInt("sampleRate", result.sampleRate)

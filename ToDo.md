@@ -46,9 +46,9 @@ Scaffold basic mono repo
 
 **Testing**
 
-- [ ] Unit tests
+- [x] Unit tests
 - [x] Basic E2E test (via example app)
-- [ ] Fix critical bugs (pending actual device testing)
+- [x] Fix critical bugs (pending actual device testing)
 
 ### Phase 3: File Persistence
 

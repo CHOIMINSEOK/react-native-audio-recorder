@@ -69,9 +69,9 @@ export interface AudioChunk {
 
 export interface RecordingResult {
   /**
-   * Absolute path to saved WAV file
+   * Temporary file WAV file uri saved in cache directory
    */
-  filePath: string;
+  tmpFileUri: string;
 
   /**
    * Recording duration in milliseconds
