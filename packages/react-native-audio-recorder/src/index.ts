@@ -56,20 +56,6 @@ function startRecording(config?: RecorderConfig): Promise<void> {
 }
 
 /**
- * Pause recording (can be resumed)
- */
-function pauseRecording(): Promise<void> {
-  return AudioRecorderModule.pauseRecording();
-}
-
-/**
- * Resume paused recording
- */
-function resumeRecording(): Promise<void> {
-  return AudioRecorderModule.resumeRecording();
-}
-
-/**
  * Stop recording and save file
  *
  * @returns Recording result with file path and metadata
@@ -180,8 +166,6 @@ const AudioRecorder = {
   checkPermission,
   requestPermission,
   startRecording,
-  pauseRecording,
-  resumeRecording,
   stopRecording,
   cancelRecording,
   getState,

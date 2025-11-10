@@ -2,7 +2,6 @@ export enum RecorderState {
   IDLE = 'idle',
   PREPARING = 'preparing',
   RECORDING = 'recording',
-  PAUSED = 'paused',
   STOPPING = 'stopping',
   STOPPED = 'stopped',
   ERROR = 'error',

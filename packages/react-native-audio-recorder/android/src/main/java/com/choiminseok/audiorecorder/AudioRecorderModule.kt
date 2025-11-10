@@ -2,22 +2,13 @@ package com.choiminseok.audiorecorder
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import com.facebook.react.module.annotations.ReactModule
-
-enum class RecorderState(val value: String) {
-    IDLE("idle"),
-    PREPARING("preparing"),
-    RECORDING("recording"),
-    PAUSED("paused"),
-    STOPPING("stopping"),
-    STOPPED("stopped"),
-    ERROR("error")
-}
 
 @ReactModule(name = AudioRecorderModule.NAME)
 class AudioRecorderModule(reactContext: ReactApplicationContext) :
@@ -28,6 +19,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         private const val PERMISSION_REQUEST_CODE = 1001
     }
 
+    private var pcmRecorder: PCMRecorder? = null
     private var currentState = RecorderState.IDLE
     private var permissionPromise: Promise? = null
 
@@ -92,6 +84,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
 
     // MARK: - Recording Methods
 
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     @ReactMethod
     fun startRecording(config: ReadableMap, promise: Promise) {
         // Check permission
@@ -113,8 +106,32 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         try {
             setState(RecorderState.PREPARING)
 
-            // TODO: Phase 2 - Implement actual recording
-            // For now, just acknowledge the request
+            // Parse config
+            val sampleRate = if (config.hasKey("sampleRate")) config.getInt("sampleRate") else 16000
+            val channels = if (config.hasKey("channels")) config.getInt("channels") else 1
+            val chunkSize = if (config.hasKey("chunkSize")) config.getInt("chunkSize") else 1024
+            val outputPath = if (config.hasKey("outputPath")) config.getString("outputPath") else null
+            val audioSource = if (config.hasKey("audioSource")) config.getString("audioSource") else "voiceRecognition"
+
+            val recorderConfig = RecorderConfig(
+                sampleRate = sampleRate,
+                channels = channels,
+                chunkSize = chunkSize,
+                audioSource = parseAudioSource(audioSource ?: "voiceRecognition"),
+                outputPath = outputPath
+            )
+
+            // Create recorder
+            pcmRecorder = PCMRecorder(
+                context = reactApplicationContext,
+                config = recorderConfig,
+                onChunk = ::handleAudioChunk,
+                onError = ::handleError
+            )
+
+            // Start recording
+            pcmRecorder?.start()
+
             setState(RecorderState.RECORDING)
             promise.resolve(null)
 
@@ -125,32 +142,8 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun pauseRecording(promise: Promise) {
-        if (currentState != RecorderState.RECORDING) {
-            promise.reject("INVALID_STATE", "Not recording")
-            return
-        }
-
-        // TODO: Phase 2 - Implement pause
-        setState(RecorderState.PAUSED)
-        promise.resolve(null)
-    }
-
-    @ReactMethod
-    fun resumeRecording(promise: Promise) {
-        if (currentState != RecorderState.PAUSED) {
-            promise.reject("INVALID_STATE", "Not paused")
-            return
-        }
-
-        // TODO: Phase 2 - Implement resume
-        setState(RecorderState.RECORDING)
-        promise.resolve(null)
-    }
-
-    @ReactMethod
     fun stopRecording(promise: Promise) {
-        if (currentState != RecorderState.RECORDING && currentState != RecorderState.PAUSED) {
+        if (currentState != RecorderState.RECORDING) {
             promise.reject("INVALID_STATE", "Not recording")
             return
         }
@@ -158,18 +151,21 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         setState(RecorderState.STOPPING)
 
         try {
-            // TODO: Phase 2 - Implement stop and file saving
-            // For now, return a mock result
+            val result = pcmRecorder?.stop()
             setState(RecorderState.STOPPED)
 
-            val resultMap = Arguments.createMap().apply {
-                putString("filePath", "/tmp/mock_recording.wav")
-                putInt("durationMs", 0)
-                putInt("fileSizeBytes", 0)
-                putInt("sampleRate", 16000)
-                putInt("channels", 1)
+            if (result != null) {
+                val resultMap = Arguments.createMap().apply {
+                    putString("filePath", result.filePath)
+                    putInt("durationMs", result.durationMs)
+                    putInt("fileSizeBytes", result.fileSizeBytes)
+                    putInt("sampleRate", result.sampleRate)
+                    putInt("channels", result.channels)
+                }
+                promise.resolve(resultMap)
+            } else {
+                promise.reject("STOP_FAILED", "Failed to stop recording")
             }
-            promise.resolve(resultMap)
 
         } catch (e: Exception) {
             setState(RecorderState.ERROR)
@@ -179,7 +175,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun cancelRecording(promise: Promise) {
-        // TODO: Phase 2 - Implement cancel
+        pcmRecorder?.cancel()
         setState(RecorderState.STOPPED)
         promise.resolve(null)
     }
@@ -191,8 +187,8 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun getDuration(promise: Promise) {
-        // TODO: Phase 2 - Return actual duration
-        promise.resolve(0)
+        val duration = pcmRecorder?.currentDuration ?: 0
+        promise.resolve(duration)
     }
 
     // MARK: - Private Helpers
@@ -212,4 +208,45 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
             ?.emit(eventName, params)
     }
+
+    private fun handleAudioChunk(chunk: AudioChunk) {
+        val chunkMap = Arguments.createMap().apply {
+            putArray("data", Arguments.fromArray(chunk.data.toIntArray()))
+            putInt("timestampMs", chunk.timestampMs)
+            putInt("sequenceNumber", chunk.sequenceNumber)
+        }
+
+        sendEvent("audioData", Arguments.createMap().apply {
+            putMap("chunk", chunkMap)
+        })
+    }
+
+    private fun handleError(error: Exception) {
+        setState(RecorderState.ERROR)
+
+        sendEvent("error", Arguments.createMap().apply {
+            putMap("error", Arguments.createMap().apply {
+                putString("code", "RECORDING_ERROR")
+                putString("message", error.message ?: "Unknown error")
+            })
+        })
+    }
+
+    private fun parseAudioSource(source: String): Int {
+        return when (source) {
+            "default" -> android.media.MediaRecorder.AudioSource.DEFAULT
+            "mic" -> android.media.MediaRecorder.AudioSource.MIC
+            "voiceRecognition" -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+            "voiceCommunication" -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            else -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+        }
+    }
 }
+
+// RN WritableArray doesn't supprot ShortArray, so we have to convert ShortArray to IntArray
+private fun ShortArray.toIntArray(): IntArray {
+    val out = IntArray(size)
+    for (i in indices) out[i] = this[i].toInt()
+    return out
+}
+

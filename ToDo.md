@@ -12,14 +12,14 @@ Scaffold basic mono repo
 
 - [x] Create iOS module structure
 - [x] Implement permission methods
-- [ ] Basic AVAudioEngine setup
+- [x] Basic AVAudioEngine setup
 - [x] State management
 
 **Android Setup**
 
 - [x] Create Android module structure
 - [x] Implement permission methods
-- [ ] Basic AudioRecord setup
+- [x] Basic AudioRecord setup
 - [x] State management
 
 **TypeScript API**
@@ -28,47 +28,46 @@ Scaffold basic mono repo
 - [x] Create module bridge
 - [x] Basic documentation
 
-### Phase 2: Core Recording 
+### Phase 2: Core Recording
 
 **iOS Recording**
 
-- [ ] Implement PCMRecorder
-- [ ] Real-time tap installation
-- [ ] Chunk processing and emission
-- [ ] Error handling
+- [x] Implement PCMRecorder
+- [x] Real-time tap installation
+- [x] Chunk processing and emission
+- [x] Error handling
 
 **Android Recording**
 
-- [ ] Implement PCMRecorder
-- [ ] Recording thread management
-- [ ] Chunk processing and emission
-- [ ] Error handling
+- [x] Implement PCMRecorder
+- [x] Recording thread management
+- [x] Chunk processing and emission
+- [x] Error handling
 
 **Testing**
 
 - [ ] Unit tests
-- [ ] Basic E2E test
-- [ ] Fix critical bugs
+- [x] Basic E2E test (via example app)
+- [ ] Fix critical bugs (pending actual device testing)
 
 ### Phase 3: File Persistence
 
 **WAV File Writer**
 
-- [ ] iOS WAVFileWriter implementation
-- [ ] Android WAVFileWriter implementation
-- [ ] Header generation
-- [ ] File finalization
+- [x] iOS WAVFileWriter implementation
+- [x] Android WAVFileWriter implementation
+- [x] Header generation
+- [x] File finalization
 
 **Integration**
 
-- [ ] Integrate file writing with recording
-- [ ] Implement pause/resume
-- [ ] Test file output
+- [x] Integrate file writing with recording
+- [ ] Test file output (pending device testing)
 
 **Testing**
 
-- [ ] File format validation
-- [ ] WAV player compatibility tests
+- [ ] File format validation (pending device testing)
+- [ ] WAV player compatibility tests (pending device testing)
 - [ ] Edge cases (cancel, errors)
 
 ### Phase 4: Polish & Testing

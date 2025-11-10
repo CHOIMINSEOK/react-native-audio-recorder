@@ -2,19 +2,10 @@ import Foundation
 import AVFoundation
 import React
 
-enum RecorderState: String {
-  case idle
-  case preparing
-  case recording
-  case paused
-  case stopping
-  case stopped
-  case error
-}
-
 @objc(AudioRecorder)
 class AudioRecorder: RCTEventEmitter {
 
+  private var pcmRecorder: PCMRecorder?
   private var currentState: RecorderState = .idle
   private var hasListeners = false
 
@@ -80,70 +71,83 @@ class AudioRecorder: RCTEventEmitter {
 
     // Validate state
     guard currentState == .idle || currentState == .stopped else {
-      reject("INVALID_STATE", "\(currentState.rawValue)", nil)
+      reject("INVALID_STATE", "Already recording", nil)
       return
     }
 
-    setState(.preparing)
+    // Parse config
+    let sampleRate = config["sampleRate"] as? Double ?? 16000.0
+    let channels = config["channels"] as? Int ?? 1
+    let chunkSize = config["chunkSize"] as? Int ?? 1024
+    let outputPath = config["outputPath"] as? String
 
-    // TODO: Phase 2 - Implement actual recording
-    // For now, just acknowledge the request
-    setState(.recording)
-    resolve(nil)
-  }
+    do {
+      setState(.preparing)
 
-  @objc
-  func pauseRecording(_ resolve: @escaping RCTPromiseResolveBlock,
-                      rejecter reject: @escaping RCTPromiseRejectBlock) {
-    guard currentState == .recording else {
-      reject("INVALID_STATE", "Not recording", nil)
-      return
+      // Configure audio session
+      let audioSession = AVAudioSession.sharedInstance()
+      try audioSession.setCategory(.record, mode: .measurement)
+      try audioSession.setActive(true)
+
+      // Create recorder config
+      let recorderConfig = RecorderConfig(
+        sampleRate: sampleRate,
+        channels: channels,
+        chunkSize: chunkSize,
+        outputPath: outputPath
+      )
+
+      // Initialize recorder
+      pcmRecorder = PCMRecorder(config: recorderConfig)
+      pcmRecorder?.delegate = self
+
+      // Start recording
+      try pcmRecorder?.start()
+
+      setState(.recording)
+      resolve(nil)
+
+    } catch {
+      setState(.error)
+      reject("START_FAILED", "Failed to start recording: \(error.localizedDescription)", error)
     }
-
-    // TODO: Phase 2 - Implement pause
-    setState(.paused)
-    resolve(nil)
-  }
-
-  @objc
-  func resumeRecording(_ resolve: @escaping RCTPromiseResolveBlock,
-                       rejecter reject: @escaping RCTPromiseRejectBlock) {
-    guard currentState == .paused else {
-      reject("INVALID_STATE", "Not paused", nil)
-      return
-    }
-
-    // TODO: Phase 2 - Implement resume
-    setState(.recording)
-    resolve(nil)
   }
 
   @objc
   func stopRecording(_ resolve: @escaping RCTPromiseResolveBlock,
                      rejecter reject: @escaping RCTPromiseRejectBlock) {
-    guard currentState == .recording || currentState == .paused else {
+    guard currentState == .recording else {
       reject("INVALID_STATE", "Not recording", nil)
       return
     }
 
     setState(.stopping)
 
-    // TODO: Phase 2 - Implement stop and file saving
-    // For now, return a mock result
-    setState(.stopped)
-    resolve([
-      "filePath": "/tmp/mock_recording.wav",
-      "durationMs": 0,
-      "fileSizeBytes": 0,
-      "sampleRate": 16000,
-      "channels": 1
-    ])
+    pcmRecorder?.stop { [weak self] result in
+      guard let self = self else { return }
+
+      switch result {
+      case .success(let recordingResult):
+        self.setState(.stopped)
+        resolve([
+          "filePath": recordingResult.filePath,
+          "durationMs": recordingResult.durationMs,
+          "fileSizeBytes": recordingResult.fileSizeBytes,
+          "sampleRate": recordingResult.sampleRate,
+          "channels": recordingResult.channels
+        ])
+
+      case .failure(let error):
+        self.setState(.error)
+        reject("STOP_FAILED", error.localizedDescription, error)
+      }
+    }
   }
 
   @objc
   func cancelRecording(_ resolve: @escaping RCTPromiseResolveBlock,
                        rejecter reject: @escaping RCTPromiseRejectBlock) {
-    // TODO: Phase 2 - Implement cancel
+    pcmRecorder?.cancel()
     setState(.stopped)
     resolve(nil)
   }
@@ -157,8 +161,8 @@ class AudioRecorder: RCTEventEmitter {
   @objc
   func getDuration(_ resolve: @escaping RCTPromiseResolveBlock,
                    rejecter reject: @escaping RCTPromiseRejectBlock) {
-    // TODO: Phase 2 - Return actual duration
-    resolve(0)
+    let duration = pcmRecorder?.currentDuration ?? 0
+    resolve(duration)
   }
 
   // MARK: - Private Helpers
@@ -174,4 +178,45 @@ class AudioRecorder: RCTEventEmitter {
       ])
     }
   }
+}
+
+// MARK: - PCMRecorderDelegate
+
+extension AudioRecorder: PCMRecorderDelegate {
+  func recorder(_ recorder: PCMRecorder, didReceiveChunk chunk: AudioChunk) {
+    guard hasListeners else { return }
+
+    // Convert Int16Array to JS-compatible format
+    let dataArray = Array(UnsafeBufferPointer(start: chunk.data, count: chunk.dataLength))
+
+    sendEvent(withName: "audioData", body: [
+      "chunk": [
+        "data": dataArray,
+        "timestampMs": chunk.timestampMs,
+        "sequenceNumber": chunk.sequenceNumber
+      ]
+    ])
+  }
+
+  func recorder(_ recorder: PCMRecorder, didEncounterError error: Error) {
+    setState(.error)
+
+    if hasListeners {
+      sendEvent(withName: "error", body: [
+        "error": [
+          "code": "RECORDING_ERROR",
+          "message": error.localizedDescription
+        ]
+      ])
+    }
+  }
+}
+
+enum RecorderState: String {
+  case idle
+  case preparing
+  case recording
+  case stopping
+  case stopped
+  case error
 }

@@ -23,18 +23,38 @@ function App(): React.JSX.Element {
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus | null>(null);
   const [recorderState, setRecorderState] = useState<RecorderState>(RecorderState.IDLE);
   const [log, setLog] = useState<string[]>([]);
+  const [chunksReceived, setChunksReceived] = useState<number>(0);
+  const [lastChunkTimestamp, setLastChunkTimestamp] = useState<number>(0);
 
   useEffect(() => {
     checkPermission();
 
     // Subscribe to state changes
-    const subscription = AudioRecorder.addListener('stateChange', (event) => {
+    const stateSubscription = AudioRecorder.addListener('stateChange', (event) => {
       addLog(`State changed: ${event.oldState} → ${event.newState}`);
       setRecorderState(event.newState as RecorderState);
+
+      // Reset chunk counter when starting a new recording
+      if (event.newState === RecorderState.RECORDING) {
+        setChunksReceived(0);
+        setLastChunkTimestamp(0);
+      }
+    });
+
+    // Subscribe to audio data chunks
+    const audioSubscription = AudioRecorder.addListener('audioData', (event) => {
+      setChunksReceived(prev => prev + 1);
+      setLastChunkTimestamp(event.chunk.timestampMs);
+
+      // Log every 10th chunk to avoid spam
+      if (event.chunk.sequenceNumber % 10 === 0) {
+        addLog(`Chunk #${event.chunk.sequenceNumber}: ${event.chunk.data.length} samples @ ${event.chunk.timestampMs}ms`);
+      }
     });
 
     return () => {
-      subscription.remove();
+      stateSubscription.remove();
+      audioSubscription.remove();
     };
   }, []);
 
@@ -79,30 +99,6 @@ function App(): React.JSX.Element {
     }
   };
 
-  const pauseRecording = async () => {
-    try {
-      addLog('Pausing recording...');
-      await AudioRecorder.pauseRecording();
-      addLog('Recording paused');
-      const state = await AudioRecorder.getState();
-      setRecorderState(state);
-    } catch (error) {
-      addLog(`Error pausing: ${error}`);
-    }
-  };
-
-  const resumeRecording = async () => {
-    try {
-      addLog('Resuming recording...');
-      await AudioRecorder.resumeRecording();
-      addLog('Recording resumed');
-      const state = await AudioRecorder.getState();
-      setRecorderState(state);
-    } catch (error) {
-      addLog(`Error resuming: ${error}`);
-    }
-  };
-
   const stopRecording = async () => {
     try {
       addLog('Stopping recording...');
@@ -144,8 +140,6 @@ function App(): React.JSX.Element {
     switch (recorderState) {
       case RecorderState.RECORDING:
         return '#F44336';
-      case RecorderState.PAUSED:
-        return '#FF9800';
       case RecorderState.IDLE:
       case RecorderState.STOPPED:
         return '#4CAF50';
@@ -159,7 +153,7 @@ function App(): React.JSX.Element {
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Audio Recorder Test</Text>
-        <Text style={styles.subtitle}>Phase 1: iOS & Android Setup</Text>
+        <Text style={styles.subtitle}>Phase 2: Core Recording & Streaming</Text>
 
         {/* Permission Status */}
         <View style={styles.statusContainer}>
@@ -176,6 +170,20 @@ function App(): React.JSX.Element {
             <Text style={styles.statusText}>{recorderState}</Text>
           </View>
         </View>
+
+        {/* Audio Data Stats */}
+        {recorderState === RecorderState.RECORDING && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Chunks Received</Text>
+              <Text style={styles.statValue}>{chunksReceived}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Duration</Text>
+              <Text style={styles.statValue}>{(lastChunkTimestamp / 1000).toFixed(1)}s</Text>
+            </View>
+          </View>
+        )}
 
         {/* Permission Buttons */}
         <View style={styles.section}>
@@ -202,25 +210,9 @@ function App(): React.JSX.Element {
               <Text style={styles.buttonText}>Start</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.smallButton, styles.warningButton]}
-              onPress={pauseRecording}
-              disabled={recorderState !== RecorderState.RECORDING}
-            >
-              <Text style={styles.buttonText}>Pause</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.smallButton, styles.successButton]}
-              onPress={resumeRecording}
-              disabled={recorderState !== RecorderState.PAUSED}
-            >
-              <Text style={styles.buttonText}>Resume</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={[styles.smallButton, styles.dangerButton]}
               onPress={stopRecording}
-              disabled={recorderState !== RecorderState.RECORDING && recorderState !== RecorderState.PAUSED}
+              disabled={recorderState !== RecorderState.RECORDING}
             >
               <Text style={styles.buttonText}>Stop</Text>
             </TouchableOpacity>
@@ -228,7 +220,7 @@ function App(): React.JSX.Element {
           <TouchableOpacity
             style={[styles.button, styles.warningButton]}
             onPress={cancelRecording}
-            disabled={recorderState !== RecorderState.RECORDING && recorderState !== RecorderState.PAUSED}
+            disabled={recorderState !== RecorderState.RECORDING}
           >
             <Text style={styles.buttonText}>Cancel Recording</Text>
           </TouchableOpacity>
@@ -293,6 +285,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
   },
   section: {
     marginTop: 20,
