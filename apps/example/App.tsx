@@ -57,21 +57,10 @@ function App(): React.JSX.Element {
       }
     });
 
-    // Initialize AudioContext
-    audioContextRef.current = new AudioContext();
 
     return () => {
       stateSubscription.remove();
       audioSubscription.remove();
-      // Cleanup audio
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.stop();
-        sourceNodeRef.current = null;
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
     };
   }, []);
 
@@ -143,13 +132,9 @@ function App(): React.JSX.Element {
   };
 
   const playRecording = async () => {
+
     if (!lastRecordedFileUri) {
       addLog('No recording to play');
-      return;
-    }
-
-    if (!audioContextRef.current) {
-      addLog('AudioContext not initialized');
       return;
     }
 
@@ -162,6 +147,9 @@ function App(): React.JSX.Element {
     try {
       addLog(`Loading audio file: ${lastRecordedFileUri}`);
       console.log('lastRecordedFile', lastRecordedFileUri);
+
+      // Initialize AudioContext
+      audioContextRef.current = new AudioContext();
 
       const audioContext = audioContextRef.current;
 
@@ -177,7 +165,7 @@ function App(): React.JSX.Element {
       source.connect(audioContext.destination);
 
       // Handle playback end
-      source.onended = () => {
+      source.onEnded = () => {
         addLog('Playback finished');
         setIsPlaying(false);
         sourceNodeRef.current = null;
@@ -195,6 +183,12 @@ function App(): React.JSX.Element {
   };
 
   const stopPlayback = () => {
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
     if (sourceNodeRef.current) {
       try {
         sourceNodeRef.current.stop();
