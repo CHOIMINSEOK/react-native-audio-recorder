@@ -87,7 +87,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
 
       // Configure audio session
       let audioSession = AVAudioSession.sharedInstance()
-      try audioSession.setCategory(.record, mode: .measurement)
+      try audioSession.setCategory(.playAndRecord, mode: .measurement)
       try audioSession.setActive(true)
 
       // Create recorder config
@@ -175,11 +175,6 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
       return
     }
 
-    guard currentState != .recording else {
-      reject("INVALID_STATE", "Cannot play audio while recording", nil)
-      return
-    }
-
     if url.isFileURL {
       playLocalFile(url, resolver: resolve, rejecter: reject)
     } else if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
@@ -201,7 +196,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
     }
 
     do {
-      try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+      try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
       try AVAudioSession.sharedInstance().setActive(true)
 
       audioPlayer?.stop()

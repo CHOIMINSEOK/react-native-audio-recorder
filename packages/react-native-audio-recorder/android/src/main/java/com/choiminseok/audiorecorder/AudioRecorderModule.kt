@@ -207,11 +207,6 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
             return
         }
 
-        if (currentState == RecorderState.RECORDING) {
-            promise.reject("INVALID_STATE", "Cannot play audio while recording")
-            return
-        }
-
         val parsedUri = Uri.parse(uri)
         val scheme = parsedUri.scheme?.lowercase()
 
