@@ -130,20 +130,18 @@ function App(): React.JSX.Element {
     }
   };
 
-  const playRecordingWithNativePlayer = async () => {
-    if (!lastRecordedFileUri) {
-      addLog('No recording to play');
-      return;
-    }
-
+  const playAudioAtUri = async (uri: string) => {
     try {
-      addLog(`Playing with native player: ${lastRecordedFileUri}`);
+      if (!uri) {
+        addLog('No audio URI provided');
+        return;
+      }
+
+      addLog(`Playing with native player: ${uri}`);
       setIsPlaying(true);
 
-      // Kotlin에서 reject된 promise는 여기서 catch됩니다
-      const result = await AudioRecorder.playAudioFile(lastRecordedFileUri);
+      const result = await AudioRecorder.playAudioFile(uri);
       addLog(`Playback started! Duration: ${result.durationMs}ms`);
-      
     } catch (error: any) {
       // React Native는 Native Module의 promise.reject()를 Error 객체로 변환합니다
       // error.code: reject의 첫 번째 인자 (예: "PLAYBACK_ERROR")
@@ -172,6 +170,18 @@ function App(): React.JSX.Element {
         nativeError: error.nativeError, // 세 번째 인자 (Exception 객체)가 있다면
       });
     }
+  };
+
+  const playRecordingWithNativePlayer = () => {
+    if (!lastRecordedFileUri) {
+      addLog('No recording to play');
+      return;
+    }
+    playAudioAtUri(lastRecordedFileUri);
+  };
+
+  const playRemoteAudio = () => {
+    playAudioAtUri('https://www.ne.jp/asahi/music/myuu/wave/fanfare.mp3');
   };
 
   const stopPlayback = () => {
@@ -282,26 +292,35 @@ function App(): React.JSX.Element {
         </View>
 
         {/* Playback Controls */}
-        {lastRecordedFileUri && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Playback</Text>
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.smallButton, styles.primaryButton]}
-                onPress={playRecordingWithNativePlayer}
-              >
-                <Text style={styles.buttonText}>Play (Local)</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Playback</Text>
+
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.button, styles.dangerButton]}
-              onPress={stopPlayback}
-              disabled={!isPlaying}
+              style={[styles.smallButton, styles.primaryButton, !lastRecordedFileUri && styles.disabledButton]}
+              onPress={playRecordingWithNativePlayer}
+              disabled={!lastRecordedFileUri}
             >
-              <Text style={styles.buttonText}>Stop Playback</Text>
+              <Text style={styles.buttonText}>Play (Local)</Text>
             </TouchableOpacity>
           </View>
-        )}
+
+          <Text style={styles.inputLabel}>Remote audio</Text>
+          <TouchableOpacity
+            style={[styles.remoteButton]}
+            onPress={playRemoteAudio}
+          >
+            <Text style={styles.remoteTitle}>Play Remote</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.dangerButton]}
+            onPress={stopPlayback}
+            disabled={!isPlaying}
+          >
+            <Text style={styles.buttonText}>Stop Playback</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Log */}
         <View style={styles.logContainer}>
@@ -431,6 +450,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  inputLabel: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 6,
+    marginTop: 6,
+  },
+  remoteButton: {
+    backgroundColor: '#0A84FF',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  remoteTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  remoteSubtitle: {
+    color: '#e6f0ff',
+    fontSize: 12,
+  },
   logContainer: {
     marginTop: 20,
     backgroundColor: '#fff',
@@ -450,7 +492,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontFamily: 'Courier',
   },
+  disabledButton: {
+    opacity: 0.6,
+  },
 });
 
 export default App;
-

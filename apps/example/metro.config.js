@@ -1,7 +1,4 @@
 const { getDefaultConfig } = require('@react-native/metro-config');
-const {
-  wrapWithAudioAPIMetroConfig,
-} = require('react-native-audio-api/metro-config');
 const path = require('path');
 
 // This can be replaced with `find-yarn-workspace-root`
@@ -27,4 +24,4 @@ config.transformer.getTransformOptions = async () => ({
   },
 });
 
-module.exports = wrapWithAudioAPIMetroConfig(config);
+module.exports = config;
