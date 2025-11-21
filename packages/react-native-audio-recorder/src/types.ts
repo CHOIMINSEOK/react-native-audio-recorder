@@ -100,6 +100,10 @@ export interface RecorderError {
   nativeError?: any;
 }
 
+export interface MediaPlayerResult {
+  durationMs: number;
+}
+
 // Event types
 export type AudioDataEvent = {
   chunk: AudioChunk;

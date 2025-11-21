@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -17,7 +17,6 @@ import {
   useColorScheme,
 } from 'react-native';
 import AudioRecorder, { PermissionStatus, RecorderState } from '@choiminseok/react-native-audio-recorder';
-import { AudioBufferSourceNode, AudioContext } from 'react-native-audio-api';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
@@ -28,8 +27,6 @@ function App(): React.JSX.Element {
   const [lastChunkTimestamp, setLastChunkTimestamp] = useState<number>(0);
   const [lastRecordedFileUri, setLastRecordedFileUri] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
     checkPermission();
@@ -62,7 +59,9 @@ function App(): React.JSX.Element {
       stateSubscription.remove();
       audioSubscription.remove();
     };
-  }, []);
+  }, 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  []);
 
   const addLog = (message: string) => {
     setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev].slice(0, 20));
@@ -131,74 +130,53 @@ function App(): React.JSX.Element {
     }
   };
 
-  const playRecording = async () => {
-
+  const playRecordingWithNativePlayer = async () => {
     if (!lastRecordedFileUri) {
       addLog('No recording to play');
       return;
     }
 
-    // Stop current playback if playing
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
-    }
-
     try {
-      addLog(`Loading audio file: ${lastRecordedFileUri}`);
-      console.log('lastRecordedFile', lastRecordedFileUri);
-
-      // Initialize AudioContext
-      audioContextRef.current = new AudioContext();
-
-      const audioContext = audioContextRef.current;
-
-      // Decode audio file
-      const audioBuffer = await audioContext.decodeAudioData(lastRecordedFileUri);
-
-      const duration = audioBuffer.duration;
-      addLog(`Playing audio (${duration.toFixed(1)}s)...`);
-
-      // Create source node
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContext.destination);
-
-      // Handle playback end
-      source.onEnded = () => {
-        addLog('Playback finished');
-        setIsPlaying(false);
-        sourceNodeRef.current = null;
-      };
-
-      // Start playback
-      source.start();
-      sourceNodeRef.current = source;
+      addLog(`Playing with native player: ${lastRecordedFileUri}`);
       setIsPlaying(true);
 
-    } catch (error) {
-      addLog(`Failed to load sound: ${error}`);
+      // Kotlin에서 reject된 promise는 여기서 catch됩니다
+      const result = await AudioRecorder.playAudioFile(lastRecordedFileUri);
+      addLog(`Playback started! Duration: ${result.durationMs}ms`);
+      
+    } catch (error: any) {
+      // React Native는 Native Module의 promise.reject()를 Error 객체로 변환합니다
+      // error.code: reject의 첫 번째 인자 (예: "PLAYBACK_ERROR")
+      // error.message: reject의 두 번째 인자 (예: "Failed to play audio (what=$what, extra=$extra)")
+      
       setIsPlaying(false);
+      
+      // 에러 코드별 처리
+      if (error.code === 'PLAYBACK_ERROR') {
+        addLog(`Playback error: ${error.message}`);
+      } else if (error.code === 'FILE_NOT_FOUND') {
+        addLog(`File not found: ${error.message}`);
+      } else if (error.code === 'INVALID_URI') {
+        addLog(`Invalid URI: ${error.message}`);
+      } else if (error.code === 'INVALID_STATE') {
+        addLog(`Invalid state: ${error.message}`);
+      } else if (error.code === 'UNSUPPORTED_SCHEME') {
+        addLog(`Unsupported scheme: ${error.message}`);
+      } else {
+        addLog(`Unknown error: ${error.code} - ${error.message}`);
+      }
+      
+      console.error('Playback error details:', {
+        code: error.code,
+        message: error.message,
+        nativeError: error.nativeError, // 세 번째 인자 (Exception 객체)가 있다면
+      });
     }
   };
 
   const stopPlayback = () => {
-
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    if (sourceNodeRef.current) {
-      try {
-        sourceNodeRef.current.stop();
-        addLog('Playback stopped');
-      } catch (error) {
-        // Already stopped
-      }
-      sourceNodeRef.current = null;
-      setIsPlaying(false);
-    }
+    addLog('Playback stopped');
+    setIsPlaying(false);
   };
 
   const getStatusColor = () => {
@@ -310,19 +288,18 @@ function App(): React.JSX.Element {
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={[styles.smallButton, styles.primaryButton]}
-                onPress={playRecording}
-                disabled={isPlaying}
+                onPress={playRecordingWithNativePlayer}
               >
-                <Text style={styles.buttonText}>Play Last Recording</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.smallButton, styles.dangerButton]}
-                onPress={stopPlayback}
-                disabled={!isPlaying}
-              >
-                <Text style={styles.buttonText}>Stop</Text>
+                <Text style={styles.buttonText}>Play (Local)</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              style={[styles.button, styles.dangerButton]}
+              onPress={stopPlayback}
+              disabled={!isPlaying}
+            >
+              <Text style={styles.buttonText}>Stop Playback</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -476,3 +453,4 @@ const styles = StyleSheet.create({
 });
 
 export default App;
+

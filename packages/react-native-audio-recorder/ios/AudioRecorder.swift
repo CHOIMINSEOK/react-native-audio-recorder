@@ -3,11 +3,12 @@ import AVFoundation
 import React
 
 @objc(AudioRecorder)
-class AudioRecorder: RCTEventEmitter {
+class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
 
   private var pcmRecorder: PCMRecorder?
   private var currentState: RecorderState = .idle
   private var hasListeners = false
+  private var audioPlayer: AVAudioPlayer?
 
   // MARK: - RCTEventEmitter
 
@@ -165,6 +166,49 @@ class AudioRecorder: RCTEventEmitter {
     resolve(duration)
   }
 
+  @objc
+  func playAudioFile(_ uri: String,
+                     resolver resolve: @escaping RCTPromiseResolveBlock,
+                     rejecter reject: @escaping RCTPromiseRejectBlock) {
+    guard !uri.isEmpty, let url = URL(string: uri) else {
+      reject("INVALID_URI", "Audio file URI is required", nil)
+      return
+    }
+
+    guard url.isFileURL else {
+      reject("UNSUPPORTED_SCHEME", "Only local file URIs (file://) are supported right now", nil)
+      return
+    }
+
+    guard currentState != .recording else {
+      reject("INVALID_STATE", "Cannot play audio while recording", nil)
+      return
+    }
+
+    let path = url.path
+    guard FileManager.default.fileExists(atPath: path) else {
+      reject("FILE_NOT_FOUND", "Audio file not found at path: \(path)", nil)
+      return
+    }
+
+    do {
+      try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+      try AVAudioSession.sharedInstance().setActive(true)
+
+      audioPlayer?.stop()
+      audioPlayer = try AVAudioPlayer(contentsOf: url)
+      audioPlayer?.delegate = self
+      audioPlayer?.prepareToPlay()
+
+      let durationMs = Int((audioPlayer?.duration ?? 0) * 1000)
+      audioPlayer?.play()
+
+      resolve(["durationMs": durationMs])
+    } catch {
+      reject("PLAYBACK_ERROR", "Failed to play audio: \(error.localizedDescription)", error)
+    }
+  }
+
   // MARK: - Private Helpers
 
   private func setState(_ newState: RecorderState) {
@@ -208,6 +252,22 @@ extension AudioRecorder: PCMRecorderDelegate {
           "message": error.localizedDescription
         ]
       ])
+    }
+  }
+}
+
+// MARK: - AVAudioPlayerDelegate
+
+extension AudioRecorder {
+  func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    if audioPlayer === player {
+      audioPlayer = nil
+    }
+  }
+
+  func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    if audioPlayer === player {
+      audioPlayer = nil
     }
   }
 }

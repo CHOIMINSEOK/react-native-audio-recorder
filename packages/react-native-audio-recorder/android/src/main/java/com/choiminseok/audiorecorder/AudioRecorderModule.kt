@@ -2,6 +2,9 @@ package com.choiminseok.audiorecorder
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.MediaPlayer
+import android.net.Uri
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.*
@@ -9,6 +12,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import com.facebook.react.module.annotations.ReactModule
+import java.io.File
 
 @ReactModule(name = AudioRecorderModule.NAME)
 class AudioRecorderModule(reactContext: ReactApplicationContext) :
@@ -22,6 +26,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
     private var pcmRecorder: PCMRecorder? = null
     private var currentState = RecorderState.IDLE
     private var permissionPromise: Promise? = null
+    private var mediaPlayer: MediaPlayer? = null
 
     override fun getName(): String = NAME
 
@@ -191,6 +196,85 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         promise.resolve(duration)
     }
 
+    @ReactMethod
+    fun playAudioFile(uri: String?, promise: Promise) {
+        if (uri.isNullOrBlank()) {
+            promise.reject("INVALID_URI", "Audio file URI is required")
+            return
+        }
+
+        if (currentState == RecorderState.RECORDING) {
+            promise.reject("INVALID_STATE", "Cannot play audio while recording")
+            return
+        }
+
+        val parsedUri = Uri.parse(uri)
+        if (parsedUri.scheme != "file") {
+            promise.reject("UNSUPPORTED_SCHEME", "Only local file URIs (file://) are supported right now")
+            return
+        }
+
+        val path = parsedUri.path
+        if (path.isNullOrEmpty()) {
+            promise.reject("INVALID_URI", "Invalid file URI")
+            return
+        }
+
+        val file = File(path)
+        if (!file.exists()) {
+            promise.reject("FILE_NOT_FOUND", "Audio file not found at path: $path")
+            return
+        }
+
+        var settled = false
+
+        try {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                setDataSource(reactApplicationContext, parsedUri)
+                setOnPreparedListener { player ->
+                    settled = true
+                    player.start()
+                    val result = Arguments.createMap().apply {
+                        putInt("durationMs", player.duration)
+                    }
+                    promise.resolve(result)
+                }
+                setOnErrorListener { mp, what, extra ->
+                    if (!settled) {
+                        promise.reject("PLAYBACK_ERROR", "Failed to play audio (what=$what, extra=$extra)")
+                        settled = true
+                    }
+                    mp.reset()
+                    mp.release()
+                    if (mediaPlayer === mp) {
+                        mediaPlayer = null
+                    }
+                    true
+                }
+                setOnCompletionListener { player ->
+                    player.release()
+                    if (mediaPlayer === player) {
+                        mediaPlayer = null
+                    }
+                }
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            mediaPlayer?.release()
+            mediaPlayer = null
+            if (!settled) {
+                promise.reject("PLAYBACK_ERROR", "Failed to play audio: ${e.message}", e)
+            }
+        }
+    }
+
     // MARK: - Private Helpers
 
     private fun setState(newState: RecorderState) {
@@ -249,4 +333,3 @@ private fun ShortArray.toIntArray(): IntArray {
     for (i in indices) out[i] = this[i].toInt()
     return out
 }
-

@@ -4,6 +4,7 @@ import type {
   PermissionStatus,
   RecorderConfig,
   RecordingResult,
+  MediaPlayerResult,
   AudioDataEvent,
   StateChangeEvent,
   ErrorEvent,
@@ -84,6 +85,14 @@ function getState(): Promise<RecorderState> {
  */
 function getDuration(): Promise<number> {
   return AudioRecorderModule.getDuration();
+}
+
+/**
+ * Play an audio file from the local filesystem.
+ * Currently only supports file:// URIs.
+ */
+function playAudioFile(uri: string): Promise<MediaPlayerResult> {
+  return AudioRecorderModule.playAudioFile(uri);
 }
 
 /**
@@ -170,6 +179,7 @@ const AudioRecorder = {
   cancelRecording,
   getState,
   getDuration,
+  playAudioFile,
   addListener,
   removeListener,
   removeAllListeners,
