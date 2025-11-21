@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "build": "yarn bob build",
+    "publish": "yarn build && npm publish --access public",
     "release": "release-it"
   },
   "keywords": [
