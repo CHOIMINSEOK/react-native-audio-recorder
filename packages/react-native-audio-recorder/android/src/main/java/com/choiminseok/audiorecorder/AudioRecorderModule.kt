@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.*
@@ -13,6 +15,8 @@ import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import com.facebook.react.module.annotations.ReactModule
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 @ReactModule(name = AudioRecorderModule.NAME)
 class AudioRecorderModule(reactContext: ReactApplicationContext) :
@@ -209,12 +213,50 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         }
 
         val parsedUri = Uri.parse(uri)
-        if (parsedUri.scheme != "file") {
-            promise.reject("UNSUPPORTED_SCHEME", "Only local file URIs (file://) are supported right now")
-            return
-        }
+        val scheme = parsedUri.scheme?.lowercase()
 
-        val path = parsedUri.path
+        when (scheme) {
+            "file" -> playFromUri(parsedUri, promise)
+            "http", "https" -> downloadAndPlay(parsedUri, promise)
+            else -> promise.reject("UNSUPPORTED_SCHEME", "Only file://, http://, or https:// URIs are supported")
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    private fun downloadAndPlay(remoteUri: Uri, promise: Promise) {
+        Thread {
+            val tempFile = File.createTempFile("rn_audio_", ".tmp", reactApplicationContext.cacheDir)
+            var connection: HttpURLConnection? = null
+            try {
+                val url = URL(remoteUri.toString())
+                connection = (url.openConnection() as? HttpURLConnection)
+                    ?: throw IllegalStateException("Invalid connection")
+
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                connection.inputStream.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                connection.disconnect()
+
+                Handler(Looper.getMainLooper()).post {
+                    playFromUri(Uri.fromFile(tempFile), promise)
+                }
+            } catch (e: Exception) {
+                tempFile.delete()
+                promise.reject("DOWNLOAD_FAILED", "Failed to download audio file: ${e.message}", e)
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    private fun playFromUri(uri: Uri, promise: Promise) {
+        val path = uri.path
         if (path.isNullOrEmpty()) {
             promise.reject("INVALID_URI", "Invalid file URI")
             return
@@ -226,8 +268,6 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
             return
         }
 
-        var settled = false
-
         try {
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
@@ -237,9 +277,8 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                         .build()
                 )
-                setDataSource(reactApplicationContext, parsedUri)
+                setDataSource(reactApplicationContext, uri)
                 setOnPreparedListener { player ->
-                    settled = true
                     player.start()
                     val result = Arguments.createMap().apply {
                         putInt("durationMs", player.duration)
@@ -247,10 +286,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
                     promise.resolve(result)
                 }
                 setOnErrorListener { mp, what, extra ->
-                    if (!settled) {
-                        promise.reject("PLAYBACK_ERROR", "Failed to play audio (what=$what, extra=$extra)")
-                        settled = true
-                    }
+                    promise.reject("PLAYBACK_ERROR", "Failed to play audio (what=$what, extra=$extra)")
                     mp.reset()
                     mp.release()
                     if (mediaPlayer === mp) {
@@ -269,13 +305,9 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             mediaPlayer?.release()
             mediaPlayer = null
-            if (!settled) {
-                promise.reject("PLAYBACK_ERROR", "Failed to play audio: ${e.message}", e)
-            }
+            promise.reject("PLAYBACK_ERROR", "Failed to play audio: ${e.message}", e)
         }
     }
-
-    // MARK: - Private Helpers
 
     private fun setState(newState: RecorderState) {
         val oldState = currentState

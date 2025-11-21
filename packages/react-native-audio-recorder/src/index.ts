@@ -88,8 +88,8 @@ function getDuration(): Promise<number> {
 }
 
 /**
- * Play an audio file from the local filesystem.
- * Currently only supports file:// URIs.
+ * Play an audio file from the local filesystem or remote URL.
+ * Supports file://, http://, and https:// URIs.
  */
 function playAudioFile(uri: string): Promise<MediaPlayerResult> {
   return AudioRecorderModule.playAudioFile(uri);

@@ -175,16 +175,25 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
       return
     }
 
-    guard url.isFileURL else {
-      reject("UNSUPPORTED_SCHEME", "Only local file URIs (file://) are supported right now", nil)
-      return
-    }
-
     guard currentState != .recording else {
       reject("INVALID_STATE", "Cannot play audio while recording", nil)
       return
     }
 
+    if url.isFileURL {
+      playLocalFile(url, resolver: resolve, rejecter: reject)
+    } else if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+      downloadAndPlay(url, resolver: resolve, rejecter: reject)
+    } else {
+      reject("UNSUPPORTED_SCHEME", "Only file://, http://, or https:// URIs are supported", nil)
+    }
+  }
+
+  // MARK: - Private Helpers
+
+  private func playLocalFile(_ url: URL,
+                             resolver resolve: @escaping RCTPromiseResolveBlock,
+                             rejecter reject: @escaping RCTPromiseRejectBlock) {
     let path = url.path
     guard FileManager.default.fileExists(atPath: path) else {
       reject("FILE_NOT_FOUND", "Audio file not found at path: \(path)", nil)
@@ -196,6 +205,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
       try AVAudioSession.sharedInstance().setActive(true)
 
       audioPlayer?.stop()
+
       audioPlayer = try AVAudioPlayer(contentsOf: url)
       audioPlayer?.delegate = self
       audioPlayer?.prepareToPlay()
@@ -209,7 +219,41 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
     }
   }
 
-  // MARK: - Private Helpers
+  private func downloadAndPlay(_ remoteURL: URL,
+                               resolver resolve: @escaping RCTPromiseResolveBlock,
+                               rejecter reject: @escaping RCTPromiseRejectBlock) {
+    let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)_\(remoteURL.lastPathComponent)")
+
+    let task = URLSession.shared.downloadTask(with: remoteURL) { [weak self] location, _, error in
+      guard let self = self else { return }
+
+      if let error = error {
+        reject("DOWNLOAD_FAILED", "Failed to download audio file: \(error.localizedDescription)", error)
+        return
+      }
+
+      guard let location = location else {
+        reject("DOWNLOAD_FAILED", "Download location is unavailable", nil)
+        return
+      }
+
+      do {
+        if FileManager.default.fileExists(atPath: tempFile.path) {
+          try FileManager.default.removeItem(at: tempFile)
+        }
+        try FileManager.default.moveItem(at: location, to: tempFile)
+      } catch {
+        reject("DOWNLOAD_FAILED", "Failed to save downloaded audio: \(error.localizedDescription)", error)
+        return
+      }
+
+      DispatchQueue.main.async {
+        self.playLocalFile(tempFile, resolver: resolve, rejecter: reject)
+      }
+    }
+
+    task.resume()
+  }
 
   private func setState(_ newState: RecorderState) {
     let oldState = currentState
