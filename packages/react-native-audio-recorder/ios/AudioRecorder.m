@@ -22,7 +22,7 @@ RCT_EXTERN_METHOD(cancelRecording:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
 // State queries
-RCT_EXTERN_METHOD(getState:(RCTPromiseResolveBlock)resolve
+RCT_EXTERN_METHOD(getRecorderState:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(getDuration:(RCTPromiseResolveBlock)resolve

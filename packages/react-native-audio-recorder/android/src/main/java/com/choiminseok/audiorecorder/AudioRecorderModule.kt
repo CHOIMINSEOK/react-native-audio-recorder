@@ -190,7 +190,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun getState(promise: Promise) {
+    fun getRecorderState(promise: Promise) {
         promise.resolve(currentState.value)
     }
 

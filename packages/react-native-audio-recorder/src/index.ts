@@ -75,8 +75,8 @@ function cancelRecording(): Promise<void> {
 /**
  * Get current recorder state
  */
-function getState(): Promise<RecorderState> {
-  return AudioRecorderModule.getState();
+function getRecorderState(): Promise<RecorderState> {
+  return AudioRecorderModule.getRecorderState();
 }
 
 /**
@@ -177,7 +177,7 @@ const AudioRecorder = {
   startRecording,
   stopRecording,
   cancelRecording,
-  getState,
+  getRecorderState,
   getDuration,
   playAudioFile,
   addListener,

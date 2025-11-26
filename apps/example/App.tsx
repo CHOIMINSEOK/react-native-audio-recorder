@@ -97,7 +97,7 @@ function App(): React.JSX.Element {
         chunkSize: 1024,
       });
       addLog('Recording started!');
-      const state = await AudioRecorder.getState();
+      const state = await AudioRecorder.getRecorderState();
       setRecorderState(state);
     } catch (error) {
       addLog(`Error starting recording: ${error}`);
@@ -111,7 +111,7 @@ function App(): React.JSX.Element {
       addLog(`Recording stopped! File: ${result.tmpFileUri}`);
       addLog(`Duration: ${result.durationMs}ms, Size: ${result.fileSizeBytes} bytes`);
       setLastRecordedFileUri(result.tmpFileUri);
-      const state = await AudioRecorder.getState();
+      const state = await AudioRecorder.getRecorderState();
       setRecorderState(state);
     } catch (error) {
       addLog(`Error stopping: ${error}`);
@@ -123,7 +123,7 @@ function App(): React.JSX.Element {
       addLog('Cancelling recording...');
       await AudioRecorder.cancelRecording();
       addLog('Recording cancelled');
-      const state = await AudioRecorder.getState();
+      const state = await AudioRecorder.getRecorderState();
       setRecorderState(state);
     } catch (error) {
       addLog(`Error cancelling: ${error}`);

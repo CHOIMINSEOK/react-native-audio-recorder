@@ -154,7 +154,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
   }
 
   @objc
-  func getState(_ resolve: @escaping RCTPromiseResolveBlock,
+  func getRecorderState(_ resolve: @escaping RCTPromiseResolveBlock,
                 rejecter reject: @escaping RCTPromiseRejectBlock) {
     resolve(currentState.rawValue)
   }
