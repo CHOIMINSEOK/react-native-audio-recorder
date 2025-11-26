@@ -9,6 +9,7 @@ import type {
   StateChangeEvent,
   ErrorEvent,
   EmitterSubscription,
+  AudioState,
 } from './types';
 
 // Re-export types
@@ -85,6 +86,20 @@ function getRecorderState(): Promise<RecorderState> {
  */
 function getDuration(): Promise<number> {
   return AudioRecorderModule.getDuration();
+}
+
+/**
+ * Get current audio playback state
+ */
+function getAudioState(): Promise<AudioState> {
+  return AudioRecorderModule.getAudioState();
+}
+
+/**
+ * Stop currently playing audio file
+ */
+function stopAudioFile(): Promise<void> {
+  return AudioRecorderModule.stopAudioFile();
 }
 
 /**
@@ -179,6 +194,8 @@ const AudioRecorder = {
   cancelRecording,
   getRecorderState,
   getDuration,
+  getAudioState,
+  stopAudioFile,
   playAudioFile,
   addListener,
   removeListener,

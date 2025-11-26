@@ -28,6 +28,12 @@ RCT_EXTERN_METHOD(getRecorderState:(RCTPromiseResolveBlock)resolve
 RCT_EXTERN_METHOD(getDuration:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(getAudioState:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(stopAudioFile:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 // Playback
 RCT_EXTERN_METHOD(playAudioFile:(NSString *)uri
                   resolver:(RCTPromiseResolveBlock)resolve

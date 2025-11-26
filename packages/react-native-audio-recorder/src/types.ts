@@ -7,6 +7,8 @@ export enum RecorderState {
   ERROR = 'error',
 }
 
+export type AudioState = 'playing' | 'idle';
+
 export enum PermissionStatus {
   GRANTED = 'granted',
   DENIED = 'denied',

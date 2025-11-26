@@ -9,6 +9,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
   private var currentState: RecorderState = .idle
   private var hasListeners = false
   private var audioPlayer: AVAudioPlayer?
+  private var audioState: AudioState = .idle
 
   // MARK: - RCTEventEmitter
 
@@ -167,6 +168,27 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
   }
 
   @objc
+  func getAudioState(_ resolve: @escaping RCTPromiseResolveBlock,
+                     rejecter reject: @escaping RCTPromiseRejectBlock) {
+    resolve(audioState.rawValue)
+  }
+
+  @objc
+  func stopAudioFile(_ resolve: @escaping RCTPromiseResolveBlock,
+                     rejecter reject: @escaping RCTPromiseRejectBlock) {
+    DispatchQueue.main.async {
+      if let player = self.audioPlayer {
+        if player.isPlaying {
+          player.stop()
+        }
+        self.audioPlayer = nil
+      }
+      self.setAudioState(.idle)
+      resolve(nil)
+    }
+  }
+
+  @objc
   func playAudioFile(_ uri: String,
                      resolver resolve: @escaping RCTPromiseResolveBlock,
                      rejecter reject: @escaping RCTPromiseRejectBlock) {
@@ -200,6 +222,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
       try AVAudioSession.sharedInstance().setActive(true)
 
       audioPlayer?.stop()
+      setAudioState(.idle)
 
       audioPlayer = try AVAudioPlayer(contentsOf: url)
       audioPlayer?.delegate = self
@@ -207,9 +230,11 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
 
       let durationMs = Int((audioPlayer?.duration ?? 0) * 1000)
       audioPlayer?.play()
+      setAudioState(.playing)
 
       resolve(["durationMs": durationMs])
     } catch {
+      setAudioState(.idle)
       reject("PLAYBACK_ERROR", "Failed to play audio: \(error.localizedDescription)", error)
     }
   }
@@ -261,6 +286,10 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
       ])
     }
   }
+
+  private func setAudioState(_ newState: AudioState) {
+    audioState = newState
+  }
 }
 
 // MARK: - PCMRecorderDelegate
@@ -300,12 +329,14 @@ extension AudioRecorder: PCMRecorderDelegate {
 extension AudioRecorder {
   func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
     if audioPlayer === player {
+      setAudioState(.idle)
       audioPlayer = nil
     }
   }
 
   func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
     if audioPlayer === player {
+      setAudioState(.idle)
       audioPlayer = nil
     }
   }
@@ -318,4 +349,9 @@ enum RecorderState: String {
   case stopping
   case stopped
   case error
+}
+
+enum AudioState: String {
+  case playing
+  case idle
 }

@@ -31,6 +31,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
     private var currentState = RecorderState.IDLE
     private var permissionPromise: Promise? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var audioState: AudioState = AudioState.IDLE
 
     override fun getName(): String = NAME
 
@@ -201,6 +202,32 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun getAudioState(promise: Promise) {
+        promise.resolve(audioState.value)
+    }
+
+    @ReactMethod
+    fun stopAudioFile(promise: Promise) {
+        Handler(Looper.getMainLooper()).post {
+            mediaPlayer?.let { player ->
+                try {
+                    if (player.isPlaying) {
+                        player.stop()
+                    }
+                    player.reset()
+                } catch (_: Exception) {
+                    // Ignore and release below
+                } finally {
+                    player.release()
+                }
+            }
+            mediaPlayer = null
+            setAudioState(AudioState.IDLE)
+            promise.resolve(null)
+        }
+    }
+
+    @ReactMethod
     fun playAudioFile(uri: String?, promise: Promise) {
         if (uri.isNullOrBlank()) {
             promise.reject("INVALID_URI", "Audio file URI is required")
@@ -265,6 +292,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
 
         try {
             mediaPlayer?.release()
+            setAudioState(AudioState.IDLE)
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -275,12 +303,14 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
                 setDataSource(reactApplicationContext, uri)
                 setOnPreparedListener { player ->
                     player.start()
+                    setAudioState(AudioState.PLAYING)
                     val result = Arguments.createMap().apply {
                         putInt("durationMs", player.duration)
                     }
                     promise.resolve(result)
                 }
                 setOnErrorListener { mp, what, extra ->
+                    setAudioState(AudioState.IDLE)
                     promise.reject("PLAYBACK_ERROR", "Failed to play audio (what=$what, extra=$extra)")
                     mp.reset()
                     mp.release()
@@ -290,6 +320,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
                     true
                 }
                 setOnCompletionListener { player ->
+                    setAudioState(AudioState.IDLE)
                     player.release()
                     if (mediaPlayer === player) {
                         mediaPlayer = null
@@ -300,6 +331,7 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             mediaPlayer?.release()
             mediaPlayer = null
+            setAudioState(AudioState.IDLE)
             promise.reject("PLAYBACK_ERROR", "Failed to play audio: ${e.message}", e)
         }
     }
@@ -318,6 +350,10 @@ class AudioRecorderModule(reactContext: ReactApplicationContext) :
         reactApplicationContext
             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
             ?.emit(eventName, params)
+    }
+
+    private fun setAudioState(newState: AudioState) {
+        audioState = newState
     }
 
     private fun handleAudioChunk(chunk: AudioChunk) {

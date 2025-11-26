@@ -184,9 +184,15 @@ function App(): React.JSX.Element {
     playAudioAtUri('https://www.ne.jp/asahi/music/myuu/wave/fanfare.mp3');
   };
 
-  const stopPlayback = () => {
-    addLog('Playback stopped');
-    setIsPlaying(false);
+  const stopPlayback = async () => {
+    try {
+      await AudioRecorder.stopAudioFile();
+      addLog('Playback stopped');
+    } catch (error) {
+      addLog(`Error stopping playback: ${error}`);
+    } finally {
+      setIsPlaying(false);
+    }
   };
 
   const getStatusColor = () => {

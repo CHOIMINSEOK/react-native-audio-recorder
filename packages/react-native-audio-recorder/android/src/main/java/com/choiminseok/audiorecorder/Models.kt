@@ -50,3 +50,8 @@ enum class RecorderState(val value: String) {
     STOPPED("stopped"),
     ERROR("error")
 }
+
+enum class AudioState(val value: String) {
+    PLAYING("playing"),
+    IDLE("idle")
+}
