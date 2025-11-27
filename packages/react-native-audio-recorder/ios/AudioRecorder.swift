@@ -218,7 +218,7 @@ class AudioRecorder: RCTEventEmitter, AVAudioPlayerDelegate {
     }
 
     do {
-      try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
+      try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
       try AVAudioSession.sharedInstance().setActive(true)
 
       audioPlayer?.stop()
