@@ -1,5 +1,5 @@
 PODS:
-  - AudioRecorder (1.0.0):
+  - AudioRecorder (1.4.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -2517,7 +2517,7 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  AudioRecorder: 0c4e09d1f88fe65d9cade9bb426a27028d9ae8ff
+  AudioRecorder: 7eae19ce593bb6452c3bee23fc61f4ba1408b890
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
   fast_float: b32c788ed9c6a8c584d114d0047beda9664e7cc6
